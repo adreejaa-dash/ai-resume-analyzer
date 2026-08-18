@@ -1,0 +1,35 @@
+John Smith
+john.smith@email.com | github.com/johnsmith | linkedin.com/in/johnsmith | +1-555-0100
+
+SUMMARY
+Machine Learning Engineer with 4 years of experience building NLP and ML systems at scale. Specialized in text classification, feature engineering, and productionizing ML models with Docker and CI/CD pipelines.
+
+SKILLS
+Python, SQL, scikit-learn, XGBoost, TensorFlow, PyTorch, pandas, NumPy, NLTK, spaCy
+Docker, Kubernetes, AWS (EC2, S3, SageMaker), Git, Jenkins, MLflow
+TF-IDF, Word Embeddings, BERT, Text Classification, NLP Pipelines
+
+EXPERIENCE
+Senior ML Engineer | TechCorp Inc | 2022–Present
+- Built NLP classification system using TF-IDF and XGBoost, achieving 94% accuracy on 50K+ support tickets
+- Reduced model inference latency by 40% through feature engineering optimization
+- Deployed 3 ML models to production using Docker containers on AWS EC2
+- Implemented CI/CD pipelines with Jenkins and automated model testing
+
+ML Engineer | DataSolutions Ltd | 2020–2022
+- Developed customer churn prediction model (Logistic Regression + Random Forest) used by 5 product teams
+- Built text preprocessing pipeline processing 1M+ documents per day
+- Collaborated with data engineers on Apache Spark ETL pipelines
+
+EDUCATION
+B.Tech in Computer Science — State University | 2020
+GPA: 8.4 / 10
+
+PROJECTS
+- NLP Complaint Classifier: TF-IDF + ensemble learning (XGBoost, LR, NB) for multi-class text classification
+- Resume Analyzer: SBERT + skill extraction system for job matching
+- Sentiment Analysis API: FastAPI + BERT-based sentiment classifier serving 500+ requests/day
+
+CERTIFICATIONS
+- AWS Certified Machine Learning Specialty (2023)
+- Deep Learning Specialization — Coursera (2021)

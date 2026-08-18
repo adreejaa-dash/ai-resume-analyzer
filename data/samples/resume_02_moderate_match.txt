@@ -1,0 +1,25 @@
+Priya Patel
+priya.patel@email.com | linkedin.com/in/priyapatel
+
+SUMMARY
+Software developer with 2 years of experience in web development and some exposure to data analysis projects. Looking to transition into data science.
+
+SKILLS
+Python, JavaScript, React, Node.js, HTML/CSS
+pandas, NumPy, basic scikit-learn usage
+MySQL, MongoDB, Git
+
+EXPERIENCE
+Software Developer | WebAgency | 2022–Present
+- Built React frontend components for 3 client projects
+- Developed RESTful APIs using Node.js and Express
+- Managed MySQL databases and wrote SQL queries
+- Created data visualization dashboards using JavaScript charting libraries
+
+EDUCATION
+Bachelor of Engineering in Computer Science | City University | 2022
+
+PROJECTS
+- Sales Dashboard: Python + pandas data analysis and matplotlib visualizations
+- Web Scraper: Python + BeautifulSoup scraper collecting product pricing data
+- Basic ML project: scikit-learn linear regression on housing prices dataset (coursework)

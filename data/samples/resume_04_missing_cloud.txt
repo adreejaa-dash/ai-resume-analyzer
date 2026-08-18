@@ -1,0 +1,29 @@
+Rahul Sharma
+rahul.sharma@email.com | github.com/rahulsharma
+
+SUMMARY
+Data Scientist with 3 years of experience in machine learning, NLP, and statistical modeling. Extensive background in Python, pandas, scikit-learn and text processing. Strong academic background in statistics.
+
+SKILLS
+Python, R, SQL
+pandas, NumPy, scikit-learn, NLTK, spaCy
+Logistic Regression, Random Forest, XGBoost, SVM
+Text Classification, Sentiment Analysis, TF-IDF, Named Entity Recognition
+Statistics, probability, hypothesis testing
+Jupyter Notebooks, Git, matplotlib, seaborn
+
+EXPERIENCE
+Data Scientist | Analytics Firm | 2021–Present
+- Built text classification models using TF-IDF and Logistic Regression
+- Performed sentiment analysis on customer reviews dataset (100K+ samples)
+- Engineered features from structured and unstructured data
+- Evaluated models using Macro F1, AUC, and confusion matrices
+
+EDUCATION
+M.Sc. in Statistics | University of Science | 2021
+B.Sc. in Mathematics | University | 2019
+
+PROJECTS
+- Customer Churn Prediction: XGBoost model with 0.87 AUC
+- News Classification: TF-IDF + Logistic Regression, 92% accuracy
+- Aspect-Based Sentiment Analysis using spaCy

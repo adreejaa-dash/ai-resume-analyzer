@@ -1,0 +1,19 @@
+# Hybrid Scoring Configuration
+# These weights are APPLICATION-DEFINED HEURISTICS.
+# They are NOT industry-standard or scientifically validated thresholds.
+# Adjust based on domain requirements and experimentation.
+
+weights:
+  required_skill_coverage: 0.30
+  semantic_similarity: 0.25
+  tfidf_similarity: 0.10
+  experience_relevance: 0.15
+  education_relevance: 0.05
+  preferred_skill_coverage: 0.05
+  ml_model_confidence: 0.10
+
+# Match category thresholds (application-defined, configurable)
+thresholds:
+  strong_match: 80
+  potential_match: 60
+  # Below potential_match → Weak Match

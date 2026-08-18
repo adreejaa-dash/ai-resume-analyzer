@@ -1,0 +1,25 @@
+Data Scientist — NLP & Machine Learning
+
+We are seeking a Data Scientist to work on NLP and machine learning projects for our product recommendation and search team.
+
+REQUIRED:
+- Bachelor's or Master's degree in Computer Science, Statistics, or related field
+- 2+ years of experience with Python for data science
+- Proficiency in NLP techniques: tokenization, TF-IDF, word embeddings
+- Experience with machine learning frameworks: scikit-learn, PyTorch or TensorFlow
+- Strong knowledge of statistics and probability
+- SQL for data extraction and analysis
+- Git for version control
+
+PREFERRED:
+- Experience with BERT or transformer-based models
+- Familiarity with Sentence Transformers or embedding models
+- Experience with experiment tracking tools (MLflow, W&B)
+- Knowledge of Flask or FastAPI for model serving
+- AWS or Azure experience
+
+RESPONSIBILITIES:
+- Develop NLP classification and ranking models
+- Analyze large text datasets and extract insights
+- Implement and evaluate machine learning models
+- Collaborate with engineering teams for deployment

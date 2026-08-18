@@ -1,0 +1,29 @@
+Maya Chen
+maya.chen@email.com | github.com/mayachen | linkedin.com/in/mayachen
+
+SUMMARY
+Computational linguist with 4 years of research experience in language understanding, semantic similarity, and knowledge representation. PhD-level knowledge of linguistics and language processing systems.
+
+SKILLS
+Python, Prolog, LISP
+Natural language understanding, semantic parsing, discourse analysis
+Distributional semantics, vector space models, ontology engineering
+WordNet, FrameNet, PropBank annotation
+Research methodology, corpus linguistics, annotation schemes
+LaTeX, academic writing, statistical analysis (R)
+
+EXPERIENCE
+Research Associate | Language Technology Lab | 2020–Present
+- Researched semantic similarity between sentences using distributional representations
+- Built knowledge graph from linguistic corpora linking concepts and relations
+- Annotated 10K+ sentence pairs for semantic equivalence and paraphrase detection
+- Published 3 papers on language model evaluation and semantic textual similarity
+
+EDUCATION
+Ph.D. in Computational Linguistics | Research University | 2020
+M.A. in Linguistics | 2016
+
+PROJECTS
+- Semantic Similarity Benchmark: human-evaluated sentence pairs for model evaluation
+- Knowledge Graph construction from parsed text corpora
+- Cross-lingual transfer study using multilingual word embeddings

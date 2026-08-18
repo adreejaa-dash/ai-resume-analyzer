@@ -1,0 +1,27 @@
+Senior Machine Learning Engineer — Data Science Platform
+
+We are building a next-generation data science platform. We are looking for an experienced ML Engineer to join our team.
+
+REQUIRED:
+- 3+ years of experience in Python for machine learning and data engineering
+- Strong proficiency in scikit-learn, XGBoost, and gradient boosting frameworks
+- Experience with TF-IDF, text classification, and NLP pipelines
+- Proficiency in pandas, NumPy, and data manipulation
+- SQL skills for querying and transforming data
+- Experience deploying models with Docker and containerization
+- Familiarity with CI/CD pipelines and Git version control
+- Ability to write unit tests and document code
+
+PREFERRED:
+- Experience with AWS or GCP cloud infrastructure
+- Familiarity with Kubernetes and orchestration
+- Experience with Spark for large-scale data processing
+- Knowledge of BERT, transformers, and modern NLP architectures
+- Experience with MLflow or experiment tracking tools
+
+RESPONSIBILITIES:
+- Design, develop and deploy machine learning models at scale
+- Build and maintain NLP classification pipelines
+- Collaborate with data engineers on feature engineering
+- Evaluate model performance using appropriate metrics including F1 score
+- Write clear documentation and technical reports
