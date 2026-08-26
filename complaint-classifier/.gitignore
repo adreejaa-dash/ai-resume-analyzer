@@ -1,6 +1,0 @@
-venv/
-__pycache__/
-*.pyc
-data/*.csv
-# Uncomment below to exclude trained model files from git (not recommended for this demo project)
-# *.pkl

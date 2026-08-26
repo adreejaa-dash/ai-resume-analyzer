@@ -4,8 +4,7 @@ services:
   web:
     build: .
     ports:
-      - "5001:5001"
+      - "8501:8501"
     environment:
-      - PORT=5001
-      - FLASK_ENV=production
+      - STREAMLIT_SERVER_PORT=8501
     restart: unless-stopped
