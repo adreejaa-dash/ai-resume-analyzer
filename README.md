@@ -167,7 +167,7 @@ Three-layer hybrid extraction:
 | Model | Description |
 |-------|-------------|
 | **Logistic Regression** | Baseline linear model; provides feature coefficient explainability |
-| **Gaussian Naive Bayes** | Classical baseline (retained from complaint classifier) |
+| **Gaussian Logistic Regression** | Classical baseline (retained from complaint classifier) |
 | **XGBoost** | Gradient boosted trees; typically strongest for tabular engineered features |
 
 ### Data Leakage Prevention
@@ -309,7 +309,7 @@ python3 tests/test_scoring_parsing.py
 
 ## Interview Story
 
-> "I initially developed an NLP-based complaint classification system using TF-IDF, Logistic Regression, Naive Bayes, and XGBoost with ensemble learning. I then reused the NLP preprocessing, TF-IDF vectorization, and model-training infrastructure to redesign the problem around resume-job matching.
+> "I initially developed an NLP-based complaint classification system using TF-IDF, Logistic Regression, Logistic Regression, and XGBoost with ensemble learning. I then reused the NLP preprocessing, TF-IDF vectorization, and model-training infrastructure to redesign the problem around resume-job matching.
 >
 > I introduced structured skill extraction using an ESCO-annotated taxonomy (3,589 skills from Decorte et al. 2022) enriched with O\*NET technology data, semantic similarity using the pretrained Sentence-BERT model (all-MiniLM-L6-v2), and engineered features combining lexical similarity, semantic similarity, and skill coverage metrics. I then trained Logistic Regression and XGBoost classifiers on a 93K-pair dataset to predict Good Fit / Potential Fit / No Fit, using Macro F1 as the primary metric because the dataset is severely imbalanced. Finally, I built an explainable hybrid scoring system with configurable heuristic weights and deployed it as a Streamlit application."
 

@@ -129,7 +129,6 @@ def train_and_evaluate(
             class_weight="balanced" if class_weights else None,
             random_state=42,
         ),
-        "Gaussian Naive Bayes": GaussianNB(),
     }
     
     if XGBOOST_AVAILABLE:
