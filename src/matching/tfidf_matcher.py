@@ -1,9 +1,9 @@
 """
-TF-IDF based text matching.
+TF-IDF lexical similarity matcher.
 
-Stage 1 baseline: Classical NLP approach using TF-IDF vectorization
-and cosine similarity. Reuses the vectorizer pattern from the original
-complaint-classifier's train.py.
+Stage 1 baseline of the resume–job matching pipeline.
+Uses bigram TF-IDF vectorization with cosine similarity to measure
+lexical overlap between resume and job-description text.
 """
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -14,10 +14,10 @@ import joblib
 
 class TfidfMatcher:
     """
-    TF-IDF cosine similarity matcher.
-    
-    Uses the same vectorizer configuration as the original complaint-classifier:
-    ngram_range=(1,2), sublinear_tf=True
+    TF-IDF cosine similarity matcher for resume–JD lexical alignment.
+
+    Configuration: bigram TF-IDF (ngram_range=(1,2), sublinear_tf=True)
+    fitted exclusively on training data to prevent leakage.
     """
     
     def __init__(self, max_features: int = 10000):

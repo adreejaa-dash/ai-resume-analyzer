@@ -1,19 +1,22 @@
 """
-Supervised ML model training for resume-job fit classification.
+Supervised ML model training for resume–job fit classification.
 
-Heavily reuses the training pattern from the original complaint-classifier's train.py:
-- Model comparison loop (LR, NB, XGBoost)
-- Macro-averaged metrics
-- Confusion matrix generation
-- joblib serialization
+Trains and evaluates Logistic Regression and XGBoost classifiers on
+structured NLP feature vectors derived from resume–JD pairs.
 
-Key difference: Uses engineered features (not raw TF-IDF vectors) as input.
+Pipeline:
+  - Build 14-dimensional feature vectors (TF-IDF sim, SBERT sim, skill
+    coverage, experience/education indicators, word-count ratios)
+  - StandardScaler normalisation (fit on train only)
+  - Model comparison: Logistic Regression vs XGBoost (if available)
+  - Primary metric: Macro F1 (handles severe class imbalance)
+  - joblib serialisation of best model, scaler, and label encoder
 """
 import numpy as np
 import pandas as pd
 import joblib
 from sklearn.linear_model import LogisticRegression
-from sklearn.naive_bayes import GaussianNB
+
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.metrics import (
     accuracy_score, precision_score, recall_score, f1_score,
@@ -108,13 +111,13 @@ def train_and_evaluate(
     class_weights: dict = None,
 ) -> dict:
     """
-    Train models and evaluate them.
-    
-    Reuses the comparison pattern from the original complaint-classifier:
-    - Logistic Regression
-    - Gaussian Naive Bayes (text baseline adapted for continuous features)
-    - XGBoost
-    
+    Train Logistic Regression (and XGBoost if available) on the provided
+    feature arrays and return metrics plus trained model objects.
+
+    Models evaluated:
+    - Logistic Regression (class-balanced, primary production model)
+    - XGBoost (comparison; typically strong on tabular engineered features)
+
     Returns dict of model results with metrics and trained models.
     """
     # Scale features

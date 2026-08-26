@@ -1,6 +1,5 @@
 """
-Unit tests for text preprocessing.
-Adapted from original complaint-classifier's test_preprocess.py.
+Unit tests for text preprocessing (text_cleaner module).
 """
 import sys
 import os

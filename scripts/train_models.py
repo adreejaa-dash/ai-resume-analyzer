@@ -103,9 +103,7 @@ def stage1_tfidf_baseline(train_df, test_df, sample_n=5000):
     Stage 1: Classical NLP baseline — TF-IDF cosine similarity.
 
     Reports similarity distribution across labels without any supervised model.
-    This is the classical NLP baseline from the original complaint-classifier.
-
-    Uses a sample for speed. Fits TF-IDF only on training texts.
+    Fits TF-IDF only on training texts (no leakage).
     """
     print("\n" + "=" * 70)
     print("STAGE 1: TF-IDF Classical Baseline")

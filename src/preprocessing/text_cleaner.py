@@ -1,12 +1,10 @@
 """
-Text preprocessing for resume and job description text.
+Text preprocessing for resume and job-description text.
 
-Adapted from the original complaint-classifier's preprocess.py.
-Key differences:
-- Preserves technical terms (C++, C#, scikit-learn, etc.)
-- Handles hyphens intelligently
-- Does NOT strip numbers (experience years matter)
-- Provides both aggressive (TF-IDF) and gentle (embedding) cleaning modes
+Provides two cleaning modes:
+- Aggressive (TF-IDF): lowercases, removes stopwords, strips most punctuation
+  while preserving technical terms (C++, scikit-learn, etc.) and numbers.
+- Gentle (embedding): minimal cleaning to preserve semantic content for SBERT.
 """
 import re
 import string
@@ -41,14 +39,13 @@ PRESERVE_TERMS = {
 def clean_for_tfidf(text: str) -> str:
     """
     Clean text for TF-IDF vectorization.
-    
-    Adapted from original complaint-classifier clean_text():
+
     - Lowercases
     - Removes URLs
-    - Preserves technical terms with special characters
+    - Preserves technical terms with special characters (C++, scikit-learn, etc.)
     - Removes most punctuation
     - Removes stopwords
-    - Keeps numbers (important for experience years)
+    - Keeps numbers (important for experience-year features)
     """
     text = str(text).lower().strip()
     
@@ -106,7 +103,6 @@ def clean_for_embedding(text: str) -> str:
 
 def clean_text(text: str) -> str:
     """
-    Backward-compatible wrapper. Uses TF-IDF cleaning by default.
-    This preserves API compatibility with the original complaint-classifier.
+    Backward-compatible alias for clean_for_tfidf().
     """
     return clean_for_tfidf(text)

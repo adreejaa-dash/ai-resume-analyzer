@@ -1,8 +1,8 @@
 """
-Model evaluation utilities.
+Model evaluation utilities for the resume–job fit classification pipeline.
 
-Generates confusion matrices, comparison tables, and evaluation reports.
-Reuses the evaluation pattern from the original complaint-classifier.
+Generates confusion matrices, model comparison tables, and markdown evaluation
+reports. Primary metric is Macro F1 to handle the severely imbalanced dataset.
 """
 import numpy as np
 import matplotlib.pyplot as plt
@@ -19,8 +19,7 @@ def plot_confusion_matrix(
     save_path: str = None,
 ):
     """
-    Plot and optionally save a confusion matrix.
-    Reuses the plotting pattern from the original complaint-classifier.
+    Plot and optionally save a labelled confusion matrix heatmap.
     """
     plt.figure(figsize=(10, 8))
     sns.heatmap(
@@ -43,8 +42,7 @@ def plot_confusion_matrix(
 
 def print_comparison_table(results: Dict):
     """
-    Print a model comparison table.
-    Same format as the original complaint-classifier.
+    Print a side-by-side model comparison table (Acc / P / R / F1 Macro / F1 Weighted).
     """
     print(f"\n{'Model':<30} {'Acc':>6} {'P(M)':>6} {'R(M)':>6} {'F1(M)':>6} {'F1(W)':>6}")
     print("-" * 72)
