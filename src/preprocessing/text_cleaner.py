@@ -19,6 +19,13 @@ for resource in ['stopwords', 'punkt', 'punkt_tab']:
     try:
         nltk.data.find(f'tokenizers/{resource}' if 'punkt' in resource else f'corpora/{resource}')
     except LookupError:
+        import ssl
+        try:
+            _create_unverified_https_context = ssl._create_unverified_context
+        except AttributeError:
+            pass
+        else:
+            ssl._create_default_https_context = _create_unverified_https_context
         nltk.download(resource, quiet=True)
 
 STOP_WORDS = set(stopwords.words("english"))
