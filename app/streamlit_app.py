@@ -1,17 +1,20 @@
 """
-AI-Powered Resume–Job Matching & Skill Gap Analyzer
-Streamlit Application
+AI Resume Analyzer — Streamlit Application
+
+Architecture:
+  Resume PDF → PyMuPDF → Resume Parsing → Skill Extraction
+  (Optional) JD Text → JD Parsing → Skill Extraction
+  → TF-IDF + Sentence-BERT similarity (JD mode only)
+  → Skill Gap Analysis → Resume Quality Audit → Results Dashboard
 """
 import os
 import sys
 import json
 
-# Add project root to path
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
 import streamlit as st
-import numpy as np
 import joblib
 
 from src.parsing.pdf_parser import extract_text_from_pdf_bytes
@@ -28,7 +31,7 @@ from src.analysis.experience_education import match_experience, match_education
 from src.analysis.resume_quality import analyze_resume_quality
 from src.models.trainer import build_feature_vector
 
-# ── Page config ────────────────────────────────────────────────────────────────
+# ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="AI Resume Analyzer",
     page_icon="🎯",
@@ -36,7 +39,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# ── CSS ────────────────────────────────────────────────────────────────────────
+# ── CSS ───────────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
@@ -45,128 +48,146 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 .stApp { background: #0f1117; color: #e2e8f0; }
 
 .hero-title {
-    font-size: 2.6rem; font-weight: 700; text-align: center;
+    font-size: 2.4rem; font-weight: 700; text-align: center;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
     -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-    margin-bottom: 0.3rem; line-height: 1.2;
+    margin-bottom: 0.25rem; line-height: 1.2;
 }
 .hero-sub {
-    text-align: center; color: #94a3b8; font-size: 1rem;
+    text-align: center; color: #94a3b8; font-size: 0.95rem;
     margin-bottom: 2rem;
 }
 
 .score-ring {
     display: flex; flex-direction: column; align-items: center;
-    padding: 2rem; background: linear-gradient(135deg, #1e1b4b, #312e81);
-    border-radius: 1.5rem; border: 1px solid #4c1d95;
-    box-shadow: 0 4px 24px rgba(99, 102, 241, 0.25);
+    padding: 1.75rem 1.5rem;
+    background: linear-gradient(135deg, #1e1b4b, #312e81);
+    border-radius: 1.25rem; border: 1px solid #4c1d95;
+    box-shadow: 0 4px 20px rgba(99,102,241,0.2);
+    margin-bottom: 0.75rem;
 }
-.score-number { font-size: 4.5rem; font-weight: 800; line-height: 1; }
-.score-label { font-size: 0.85rem; color: #a5b4fc; margin-top: 0.5rem; text-transform: uppercase; letter-spacing: 0.1em; }
+.score-number { font-size: 4rem; font-weight: 800; line-height: 1; }
+.score-label  { font-size: 0.8rem; color: #a5b4fc; margin-top: 0.4rem;
+                text-transform: uppercase; letter-spacing: 0.1em; text-align: center; }
+.score-note   { font-size: 0.7rem; color: #64748b; margin-top: 0.3rem; text-align: center; }
 
 .issue-card {
     background: #1e293b; border-radius: 0.75rem;
-    padding: 1rem 1.25rem; border-left: 4px solid;
-    margin-bottom: 1rem; border-color: #f87171;
+    padding: 1rem 1.2rem; border-left: 4px solid #64748b;
+    margin-bottom: 0.9rem;
 }
-.issue-card.High { border-color: #ef4444; }
-.issue-card.Medium { border-color: #f59e0b; }
-.issue-card.Minor { border-color: #3b82f6; }
 .issue-card.Critical { border-color: #dc2626; }
+.issue-card.High     { border-color: #ef4444; }
+.issue-card.Medium   { border-color: #f59e0b; }
+.issue-card.Minor    { border-color: #3b82f6; }
 
-.issue-title { font-weight: 700; font-size: 1.1rem; color: #f8fafc; margin-bottom: 0.25rem; }
-.issue-meta { font-size: 0.8rem; color: #94a3b8; margin-bottom: 0.5rem; }
-.issue-body { font-size: 0.9rem; color: #cbd5e1; margin-bottom: 0.5rem; }
-.issue-solution { background: rgba(34,197,94,0.1); padding: 0.75rem; border-radius: 0.5rem; border: 1px solid rgba(34,197,94,0.2); color: #86efac; font-size: 0.9rem; margin-top: 0.5rem; }
+.issue-title  { font-weight: 700; font-size: 1rem; color: #f8fafc; margin-bottom: 0.2rem; }
+.issue-meta   { font-size: 0.78rem; color: #94a3b8; margin-bottom: 0.4rem; }
+.issue-why    { font-size: 0.88rem; color: #cbd5e1; margin-bottom: 0.4rem; }
+.issue-sol    { background: rgba(34,197,94,0.08); padding: 0.65rem 0.9rem;
+                border-radius: 0.4rem; border: 1px solid rgba(34,197,94,0.2);
+                color: #86efac; font-size: 0.88rem; }
+
+.skill-tag {
+    display: inline-block; padding: 0.22rem 0.55rem;
+    border-radius: 0.35rem; font-size: 0.78rem; font-weight: 500;
+    margin: 0.18rem; border: 1px solid transparent;
+}
+.matched  { background: rgba(34,197,94,0.13); color:#86efac; border-color:rgba(34,197,94,0.3); }
+.missing  { background: rgba(239,68,68,0.12);  color:#fca5a5; border-color:rgba(239,68,68,0.28); }
+.preferred{ background: rgba(234,179,8,0.1);   color:#fde047; border-color:rgba(234,179,8,0.25); }
+
+.align-card {
+    background: #1e293b; border-radius: 0.75rem; padding: 1rem 1.2rem;
+    border: 1px solid #334155; margin-bottom: 0.75rem;
+}
+.align-label { font-size: 0.78rem; color:#94a3b8; text-transform:uppercase; letter-spacing:0.07em; }
+.align-value { font-size: 0.95rem; color:#e2e8f0; margin-top:0.2rem; }
+.align-note  { font-size:0.8rem; color:#64748b; margin-top:0.2rem; }
 
 div[data-testid="stButton"] > button {
     background: linear-gradient(135deg, #667eea, #764ba2);
     color: white; border: none; border-radius: 0.5rem;
-    padding: 0.6rem 2rem; font-weight: 600; font-size: 1rem;
+    padding: 0.65rem 2rem; font-weight: 600; font-size: 0.95rem;
     width: 100%; transition: opacity 0.2s;
 }
-div[data-testid="stButton"] > button:hover { opacity: 0.9; }
+div[data-testid="stButton"] > button:hover { opacity: 0.88; }
 </style>
 """, unsafe_allow_html=True)
 
 
-# ── Resource loading (cached) ──────────────────────────────────────────────────
+# ── Cached resource loading ───────────────────────────────────────────────────
 
 @st.cache_resource(show_spinner="Loading models…")
 def load_resources():
     tax = SkillTaxonomy()
     return {
         "extractor": SkillExtractor(tax),
-        "tfidf": load_tfidf_model(),
-        "sbert": SemanticMatcher(),
-        "classifier": load_classifier_model()
+        "tfidf":     _load_tfidf(),
+        "sbert":     SemanticMatcher(),
+        "clf":       _load_classifier(),
     }
 
-def load_tfidf_model():
-    matcher = TfidfMatcher()
-    vec_path = os.path.join(ROOT, "models", "tfidf_vectorizer.joblib")
-    if os.path.exists(vec_path):
-        matcher.load(vec_path)
-    return matcher
+def _load_tfidf():
+    m = TfidfMatcher()
+    p = os.path.join(ROOT, "models", "tfidf_vectorizer.joblib")
+    if os.path.exists(p):
+        m.load(p)
+    return m
 
-def load_classifier_model():
-    models_dir = os.path.join(ROOT, "models")
-    model_path = os.path.join(models_dir, "best_model.joblib")
-    scaler_path = os.path.join(models_dir, "scaler.joblib")
-    le_path = os.path.join(models_dir, "label_encoder.joblib")
-    if not all(os.path.exists(p) for p in [model_path, scaler_path, le_path]):
+def _load_classifier():
+    d = os.path.join(ROOT, "models")
+    paths = [os.path.join(d, f) for f in ("best_model.joblib", "scaler.joblib", "label_encoder.joblib")]
+    if not all(os.path.exists(p) for p in paths):
         return None, None, None
-    return joblib.load(model_path), joblib.load(scaler_path), joblib.load(le_path)
+    return tuple(joblib.load(p) for p in paths)
 
 @st.cache_data
-def load_scoring_cfg():
+def _load_scoring_cfg():
     return load_scoring_config()
 
 
-# ── Analysis engine ────────────────────────────────────────────────────────────
+# ── Analysis pipeline ─────────────────────────────────────────────────────────
 
-def run_analysis(resume_text: str, jd_text: str, career_level: str, target_role: str, yoe: str) -> dict:
+def run_analysis(resume_text: str, jd_text: str, career_level: str, target_role: str, yoe) -> dict:
     res = load_resources()
     extractor = res["extractor"]
-    tfidf = res["tfidf"]
-    sbert = res["sbert"]
-    model, scaler, le = res["classifier"]
-    config = load_scoring_cfg()
+    tfidf     = res["tfidf"]
+    sbert     = res["sbert"]
+    model, scaler, le = res["clf"]
+    config    = _load_scoring_cfg()
 
-    resume_parsed = parse_resume(resume_text)
-    
-    # JD Parsing (only if provided)
-    has_jd = bool(jd_text.strip())
-    
-    score_result = None
-    skill_match = None
+    resume_parsed  = parse_resume(resume_text)
+    resume_skills  = extractor.extract_flat_skills(resume_text)
+    has_jd         = bool(jd_text.strip())
+
+    score_result   = None
+    skill_match    = None
     jd_skills_data = None
-    resume_skills = extractor.extract_flat_skills(resume_text)
+    exp_match      = None
+    edu_match      = None
+    tfidf_sim      = None
+    sbert_sim      = None
 
     if has_jd:
-        jd_parsed = parse_job_description(jd_text)
         jd_skills_data = extract_jd_skills(jd_text, extractor)
-        skill_match = match_skills(
-            resume_skills,
-            jd_skills_data["required"],
-            jd_skills_data["preferred"],
-        )
-        resume_clean = clean_for_tfidf(resume_text)
-        jd_clean = clean_for_tfidf(jd_text)
-        tfidf_sim = tfidf.similarity(resume_clean, jd_clean)
-        
-        resume_emb = clean_for_embedding(resume_text)
-        jd_emb = clean_for_embedding(jd_text)
-        sbert_sim = sbert.similarity(resume_emb, jd_emb)
-        
-        exp_match = match_experience(jd_text, resume_text)
-        edu_match = match_education(jd_text, resume_text)
-        
-        ml_proba_value = 0.5
+        skill_match    = match_skills(resume_skills, jd_skills_data["required"], jd_skills_data["preferred"])
+
+        resume_clean   = clean_for_tfidf(resume_text)
+        jd_clean       = clean_for_tfidf(jd_text)
+        tfidf_sim      = tfidf.similarity(resume_clean, jd_clean)
+
+        resume_emb     = clean_for_embedding(resume_text)
+        jd_emb         = clean_for_embedding(jd_text)
+        sbert_sim      = sbert.similarity(resume_emb, jd_emb)
+
+        exp_match      = match_experience(jd_text, resume_text)
+        edu_match      = match_education(jd_text, resume_text)
+
+        ml_proba = 0.5
         if model is not None:
-            feat_vec = build_feature_vector(
-                tfidf_sim=tfidf_sim,
-                sbert_sim=sbert_sim,
+            fv = build_feature_vector(
+                tfidf_sim=tfidf_sim, sbert_sim=sbert_sim,
                 skill_coverage=skill_match["overall_coverage"],
                 required_skill_coverage=skill_match["required_coverage"],
                 preferred_skill_coverage=skill_match["preferred_coverage"],
@@ -179,10 +200,8 @@ def run_analysis(resume_text: str, jd_text: str, career_level: str, target_role:
                 education_match=edu_match["match_indicator"],
                 experience_match=exp_match["match_indicator"],
             ).reshape(1, -1)
-            feat_scaled = scaler.transform(feat_vec)
-            proba = model.predict_proba(feat_scaled)[0]
-            ml_proba_value = float(max(proba))
-            
+            ml_proba = float(max(model.predict_proba(scaler.transform(fv))[0]))
+
         score_result = calculate_match_score(
             required_skill_coverage=skill_match["required_coverage"],
             semantic_similarity=sbert_sim,
@@ -190,38 +209,85 @@ def run_analysis(resume_text: str, jd_text: str, career_level: str, target_role:
             experience_relevance=exp_match["match_indicator"],
             education_relevance=edu_match["match_indicator"],
             preferred_skill_coverage=skill_match["preferred_coverage"],
-            ml_model_probability=ml_proba_value,
+            ml_model_probability=ml_proba,
             config=config,
         )
 
-    # Resume quality (Audit)
-    audit_results = analyze_resume_quality(
+    audit = analyze_resume_quality(
         text=resume_text,
         sections=resume_parsed["sections"],
         contact=resume_parsed["contact"],
         word_count=len(resume_text.split()),
         career_level=career_level,
         target_role=target_role,
-        yoe=yoe
+        yoe=yoe,
     )
 
     return {
-        "has_jd": has_jd,
-        "score": score_result,
-        "skill_match": skill_match,
-        "jd_required": jd_skills_data["required"] if has_jd else [],
+        "has_jd":       has_jd,
+        "score":        score_result,
+        "skill_match":  skill_match,
+        "jd_required":  jd_skills_data["required"]  if has_jd else [],
         "jd_preferred": jd_skills_data["preferred"] if has_jd else [],
+        "exp_match":    exp_match,
+        "edu_match":    edu_match,
+        "tfidf_sim":    tfidf_sim,
+        "sbert_sim":    sbert_sim,
         "resume_parsed": resume_parsed,
-        "audit": audit_results,
+        "audit":        audit,
     }
 
 
-# ── Main UI ────────────────────────────────────────────────────────────────────
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+def _skill_tags(skills, css_class):
+    if not skills:
+        st.markdown("<span style='color:#64748b;font-size:0.85rem'>None detected</span>", unsafe_allow_html=True)
+        return
+    html = " ".join(f'<span class="skill-tag {css_class}">{s}</span>' for s in skills)
+    st.markdown(html, unsafe_allow_html=True)
+
+def _align_card(label, value, note=""):
+    note_html = f'<div class="align-note">{note}</div>' if note else ""
+    st.markdown(
+        f'<div class="align-card">'
+        f'<div class="align-label">{label}</div>'
+        f'<div class="align-value">{value}</div>'
+        f'{note_html}</div>',
+        unsafe_allow_html=True,
+    )
+
+def _pct(v):
+    return f"{v*100:.0f}%"
+
+
+# ── Main UI ───────────────────────────────────────────────────────────────────
+
+TARGET_ROLES = [
+    "Software Engineer", "Software Developer", "Frontend Developer",
+    "Backend Developer", "Full Stack Developer", "Mobile App Developer",
+    "Data Analyst", "Data Scientist", "Machine Learning Engineer", "AI Engineer",
+    "Business Analyst", "Business Intelligence Analyst",
+    "Product Manager", "Product Analyst",
+    "Project Manager", "Program Manager",
+    "DevOps Engineer", "Cloud Engineer", "Cloud Architect",
+    "Cybersecurity Analyst", "Security Engineer",
+    "QA Engineer", "Test Engineer", "Automation Test Engineer",
+    "UI/UX Designer", "Product Designer",
+    "Database Administrator", "Systems Engineer", "Network Engineer",
+    "Solutions Architect", "Financial Analyst", "Marketing Analyst",
+    "Digital Marketing Specialist", "Human Resources",
+    "Talent Acquisition / Recruiter", "Operations Analyst",
+    "Supply Chain Analyst", "Management Consultant", "Consultant",
+    "Technical Writer", "Customer Success",
+    "Sales / Business Development", "Other",
+]
+
 
 def main():
     st.markdown('<div class="hero-title">🎯 AI Resume Analyzer</div>', unsafe_allow_html=True)
     st.markdown(
-        '<div class="hero-sub">Upload your resume to get a detailed audit and actionable improvements.</div>',
+        '<div class="hero-sub">Get a detailed audit of your resume with specific issues and actionable solutions.</div>',
         unsafe_allow_html=True,
     )
 
@@ -229,35 +295,26 @@ def main():
 
     with col_l:
         st.markdown("### 1. Upload Resume")
-        uploaded = st.file_uploader(
-            "Upload PDF resume", type=["pdf"],
-            help="Upload a text-extractable PDF resume",
-        )
-        
-        st.markdown("### 2. Context")
+        uploaded = st.file_uploader("Upload PDF", type=["pdf"],
+                                    help="Upload a text-extractable PDF resume.")
+
+        st.markdown("### 2. Career Context")
         career_level = st.selectbox("Career Level", ["Fresher / Student", "Experienced Professional"])
         yoe = None
         if career_level == "Experienced Professional":
-            yoe = st.selectbox("Years of Experience", ["1–2 years", "3–5 years", "6–8 years", "9–12 years", "12+ years"])
-            
-        roles = [
-            "Software Engineer", "Software Developer", "Frontend Developer", "Backend Developer",
-            "Full Stack Developer", "Mobile App Developer", "Data Analyst", "Data Scientist",
-            "Machine Learning Engineer", "AI Engineer", "Business Analyst", "Product Manager",
-            "DevOps Engineer", "Cloud Engineer", "Cybersecurity Analyst", "QA Engineer",
-            "UI/UX Designer", "Database Administrator", "Financial Analyst", "Marketing Analyst",
-            "Human Resources", "Management Consultant", "Sales / Business Development", "Other"
-        ]
-        target_role = st.selectbox("Target Role", roles)
+            yoe = st.selectbox("Years of Experience",
+                               ["1–2 years", "3–5 years", "6–8 years", "9–12 years", "12+ years"])
+
+        target_role = st.selectbox("Target Role", TARGET_ROLES)
         if target_role == "Other":
-            target_role = st.text_input("Enter Target Role")
+            target_role = st.text_input("Enter your target role")
 
     with col_r:
-        st.markdown("### 3. JD (Optional)")
+        st.markdown("### 3. Job Description *(Optional)*")
         jd_text = st.text_area(
             "Paste Job Description",
-            height=300,
-            placeholder="Paste the full job description here for job-specific matching...",
+            height=310,
+            placeholder="Paste the full job description for job-specific skill and keyword matching…\nLeave blank to analyze your resume independently.",
         )
 
     st.markdown("<br>", unsafe_allow_html=True)
@@ -267,92 +324,167 @@ def main():
         if uploaded is None:
             st.error("Please upload a PDF resume.")
             return
-
-        pdf_result = extract_text_from_pdf_bytes(uploaded.read())
-        if pdf_result["error"]:
-            st.error(f"PDF Error: {pdf_result['error']}")
+        pdf = extract_text_from_pdf_bytes(uploaded.read())
+        if pdf["error"]:
+            st.error(f"Could not read PDF: {pdf['error']}")
             return
-        
-        resume_text = pdf_result["text"]
+        if pdf["word_count"] < 30:
+            st.warning("Very little text was extracted from the PDF. "
+                       "The resume may use images, scanned pages, or complex formatting. "
+                       "Results may be incomplete.")
+            if pdf["word_count"] < 10:
+                st.error("The PDF could not be parsed. Please try a different file.")
+                return
 
-        with st.spinner("Analyzing resume..."):
-            results = run_analysis(resume_text, jd_text, career_level, target_role, yoe)
-        
-        st.session_state["results"] = results
-        st.session_state["has_jd"] = results["has_jd"]
+        with st.spinner("Analyzing resume…"):
+            results = run_analysis(pdf["text"], jd_text, career_level, target_role, yoe)
 
-    # ── Results Dashboard ──
-    if "results" in st.session_state:
-        r = st.session_state["results"]
-        has_jd = st.session_state["has_jd"]
+        st.session_state["results"]  = results
+        st.session_state["has_jd"]   = results["has_jd"]
+        st.session_state["pdf_meta"] = pdf
 
-        st.divider()
-        st.markdown("## 📊 Analysis Results")
-        
-        audit = r["audit"]
-        score_val = audit["quality_score"]
-        
-        c1, c2 = st.columns([1, 2])
-        with c1:
+    # ── Results ───────────────────────────────────────────────────────────
+    if "results" not in st.session_state:
+        return
+
+    r      = st.session_state["results"]
+    has_jd = st.session_state["has_jd"]
+    audit  = r["audit"]
+
+    st.divider()
+    st.markdown("## 📊 Analysis Results")
+
+    # ── Scores row ────────────────────────────────────────────────────────
+    score_cols = st.columns(2) if has_jd else st.columns([1, 2])
+
+    with score_cols[0]:
+        q_score = audit["quality_score"]
+        q_color = "#34d399" if q_score >= 75 else "#fbbf24" if q_score >= 55 else "#f87171"
+        st.markdown(f"""
+        <div class="score-ring">
+            <div class="score-number" style="color:{q_color}">{q_score}</div>
+            <div class="score-label">Resume Quality Score / 100</div>
+            <div class="score-note">Application-defined assessment · Not an official ATS score</div>
+        </div>""", unsafe_allow_html=True)
+
+    if has_jd and r["score"]:
+        with score_cols[1]:
+            jd_s     = r["score"]["overall_score"]
+            jd_cat   = r["score"]["category"]
+            jd_color = "#34d399" if jd_s >= 75 else "#fbbf24" if jd_s >= 55 else "#f87171"
             st.markdown(f"""
             <div class="score-ring">
-                <div class="score-number" style="color:#a78bfa">{score_val}</div>
-                <div class="score-label">Resume Quality Score</div>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            if has_jd and r["score"]:
-                jd_score = r["score"]["overall_score"]
-                st.markdown(f"""
-                <div class="score-ring" style="margin-top: 1rem;">
-                    <div class="score-number" style="color:#34d399">{jd_score}</div>
-                    <div class="score-label">Resume-Job Match Score</div>
-                </div>
-                """, unsafe_allow_html=True)
-                
-        with c2:
+                <div class="score-number" style="color:{jd_color}">{jd_s}</div>
+                <div class="score-label">Resume–Job Match Score / 100</div>
+                <div class="score-note">{jd_cat} · Application-defined assessment</div>
+            </div>""", unsafe_allow_html=True)
+
+    # ── Strengths ─────────────────────────────────────────────────────────
+    if not has_jd:
+        with score_cols[1]:
             st.markdown("### ✨ Strengths")
-            if not audit["strengths"]:
-                st.write("- Resume parsed successfully.")
+            if audit["strengths"]:
+                for s in audit["strengths"]:
+                    st.markdown(f"- {s}")
+            else:
+                st.markdown("- Resume was parsed and analyzed.")
+    else:
+        st.markdown("### ✨ Strengths")
+        if audit["strengths"]:
             for s in audit["strengths"]:
                 st.markdown(f"- {s}")
-                
-        st.divider()
-        st.markdown("### 🔍 Resume Audit")
-        
-        issues = audit["issues"]
-        if not issues:
-            st.success("No major issues found in your resume!")
-        else:
-            for issue in issues:
-                st.markdown(f"""
-                <div class="issue-card {issue['severity']}">
-                    <div class="issue-title">{issue['title']}</div>
-                    <div class="issue-meta"><strong>Severity:</strong> {issue['severity']} | <strong>Location:</strong> {issue['location']}</div>
-                    <div class="issue-body"><strong>Why it matters:</strong> {issue['why']}</div>
-                    <div class="issue-solution"><strong>Solution:</strong> {issue['solution']}</div>
+
+    # ── Resume Audit ──────────────────────────────────────────────────────
+    st.divider()
+    st.markdown("### 🔍 Resume Audit")
+    issues = audit["issues"]
+
+    if not issues:
+        st.success("No significant issues found in your resume.")
+    else:
+        order = {"Critical": 0, "High": 1, "Medium": 2, "Minor": 3}
+        for issue in sorted(issues, key=lambda x: order.get(x["severity"], 4)):
+            st.markdown(f"""
+            <div class="issue-card {issue['severity']}">
+                <div class="issue-title">{issue['title']}</div>
+                <div class="issue-meta">
+                    <strong>Severity:</strong> {issue['severity']} &nbsp;|&nbsp;
+                    <strong>Location:</strong> {issue['location']}
                 </div>
-                """, unsafe_allow_html=True)
-                
-        if has_jd:
-            st.divider()
-            st.markdown("### 🎯 Job Match Gaps")
-            match = r["skill_match"]
-            
-            mc1, mc2 = st.columns(2)
-            with mc1:
-                st.markdown("#### Matched Skills")
-                if match["matched_required"]:
-                    st.write(", ".join(match["matched_required"]))
-                else:
-                    st.write("None")
-            with mc2:
-                st.markdown("#### Missing Skills")
-                if match["missing_required"]:
-                    st.write(", ".join(match["missing_required"]))
-                    st.caption("Only add these if you genuinely possess the skill or relevant experience.")
-                else:
-                    st.write("None")
+                <div class="issue-why"><strong>Why it matters:</strong> {issue['why']}</div>
+                <div class="issue-sol"><strong>Solution:</strong> {issue['solution']}</div>
+            </div>""", unsafe_allow_html=True)
+
+    # ── JD Analysis ───────────────────────────────────────────────────────
+    if has_jd:
+        st.divider()
+        st.markdown("### 🎯 Job Match Analysis")
+
+        match = r["skill_match"]
+
+        # Skills
+        sk1, sk2, sk3 = st.columns(3)
+        with sk1:
+            st.markdown("#### ✅ Matched Required Skills")
+            _skill_tags(match["matched_required"], "matched")
+        with sk2:
+            st.markdown("#### ❌ Missing Required Skills")
+            _skill_tags(match["missing_required"], "missing")
+            if match["missing_required"]:
+                st.caption("⚠️ Only add these if you genuinely possess the skill.")
+        with sk3:
+            st.markdown("#### ⭐ Missing Preferred Skills")
+            _skill_tags(match["missing_preferred"], "preferred")
+            if match["missing_preferred"]:
+                st.caption("These are nice-to-have, not required. Only add if applicable.")
+
+        # Keyword alignment (lexical / semantic in plain language)
+        st.markdown("#### 🔑 Keyword & Relevance Alignment")
+        ka1, ka2 = st.columns(2)
+        with ka1:
+            ts = r["tfidf_sim"] or 0
+            if ts >= 0.6:
+                kw_msg = "Your resume uses many of the same keywords as the job description."
+                kw_indicator = "🟢 Strong"
+            elif ts >= 0.35:
+                kw_msg = "Your resume shares some keywords with the job description, but there is room for improvement."
+                kw_indicator = "🟡 Moderate"
+            else:
+                kw_msg = "Your resume has low keyword overlap with the job description. Consider mirroring key terms from the JD where truthfully applicable."
+                kw_indicator = "🔴 Low"
+            _align_card("Keyword Alignment", kw_indicator, kw_msg)
+
+        with ka2:
+            ss = r["sbert_sim"] or 0
+            if ss >= 0.6:
+                sem_msg = "Your experience and the job requirements are closely aligned in meaning."
+                sem_indicator = "🟢 Strong"
+            elif ss >= 0.35:
+                sem_msg = "Your experience and the job requirements show moderate alignment."
+                sem_indicator = "🟡 Moderate"
+            else:
+                sem_msg = "Your background and the job requirements appear weakly aligned. Review the JD and consider how your experience maps to its requirements."
+                sem_indicator = "🔴 Low"
+            _align_card("Relevance Alignment", sem_indicator, sem_msg)
+
+        # Experience + Education alignment
+        st.markdown("#### 📋 Experience & Education")
+        ea1, ea2 = st.columns(2)
+        exp = r["exp_match"]
+        edu = r["edu_match"]
+        with ea1:
+            _align_card(
+                "Experience Requirement",
+                f"JD: {exp['jd_requirement']}",
+                f"Your resume: {exp['resume_experience']} — {exp['note']}",
+            )
+        with ea2:
+            _align_card(
+                "Education Requirement",
+                f"JD: {edu['jd_requirement']}",
+                f"Your resume: {edu['resume_degree']} — {edu['note']}",
+            )
+
 
 if __name__ == "__main__":
     main()
