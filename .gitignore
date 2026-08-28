@@ -12,10 +12,7 @@ data/raw/
 data/processed/
 data/*.csv
 
-# Model artifacts (regenerated via training)
-models/*.joblib
-models/*.pkl
-*.pkl
+
 
 # Legacy complaint-classifier artifacts
 confusion_matrix.png
