@@ -18,6 +18,7 @@ import streamlit as st
 import joblib
 
 from src.parsing.pdf_parser import extract_text_from_pdf_bytes
+from src.parsing.image_parser import extract_text_from_image_bytes
 from src.parsing.resume_parser import parse_resume
 from src.parsing.jd_parser import parse_job_description
 from src.preprocessing.text_cleaner import clean_for_tfidf, clean_for_embedding
@@ -112,6 +113,7 @@ div[data-testid="stButton"] > button {
     width: 100%; transition: opacity 0.2s;
 }
 div[data-testid="stButton"] > button:hover { opacity: 0.88; }
+.stSelectbox input { caret-color: transparent !important; cursor: pointer !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -311,11 +313,25 @@ def main():
 
     with col_r:
         st.markdown("### 3. Job Description *(Optional)*")
+        
+        jd_upload = st.file_uploader(
+            "Upload JD (PDF, PNG, JPG/JPEG)", 
+            type=["pdf", "png", "jpg", "jpeg"],
+            help="Upload a Job Description file."
+        )
+        
+        st.markdown("**OR**")
+        
         jd_text = st.text_area(
             "Paste Job Description",
-            height=310,
-            placeholder="Paste the full job description for job-specific skill and keyword matching…\nLeave blank to analyze your resume independently.",
+            height=200,
+            placeholder="Paste the full job description here...\nLeave blank to analyze your resume independently.",
         )
+        
+        if jd_upload is not None:
+            st.info(f"Using uploaded JD: {jd_upload.name}")
+        elif jd_text.strip():
+            st.info("Using pasted JD text.")
 
     st.markdown("<br>", unsafe_allow_html=True)
     analyze_btn = st.button("🚀 Analyze Resume", use_container_width=True)
@@ -336,8 +352,26 @@ def main():
                 st.error("The PDF could not be parsed. Please try a different file.")
                 return
 
+        final_jd_text = ""
+        if jd_upload is not None:
+            file_type = jd_upload.name.split('.')[-1].lower()
+            if file_type == 'pdf':
+                jd_pdf = extract_text_from_pdf_bytes(jd_upload.read())
+                if jd_pdf["error"]:
+                    st.error(f"Could not read JD PDF: {jd_pdf['error']}")
+                    return
+                final_jd_text = jd_pdf["text"]
+            elif file_type in ['png', 'jpg', 'jpeg']:
+                jd_img = extract_text_from_image_bytes(jd_upload.read())
+                if jd_img["error"]:
+                    st.error(f"Could not read JD Image: {jd_img['error']}")
+                    return
+                final_jd_text = jd_img["text"]
+        else:
+            final_jd_text = jd_text
+
         with st.spinner("Analyzing resume…"):
-            results = run_analysis(pdf["text"], jd_text, career_level, target_role, yoe)
+            results = run_analysis(pdf["text"], final_jd_text, career_level, target_role, yoe)
 
         st.session_state["results"]  = results
         st.session_state["has_jd"]   = results["has_jd"]
