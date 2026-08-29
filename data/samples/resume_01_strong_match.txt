@@ -26,7 +26,7 @@ B.Tech in Computer Science — State University | 2020
 GPA: 8.4 / 10
 
 PROJECTS
-- NLP Complaint Classifier: TF-IDF + ensemble learning (XGBoost, LR, NB) for multi-class text classification
+- NLP Text Classifier: TF-IDF + ensemble learning (XGBoost, LR, NB) for multi-class text classification
 - Resume Analyzer: SBERT + skill extraction system for job matching
 - Sentiment Analysis API: FastAPI + BERT-based sentiment classifier serving 500+ requests/day
 
