@@ -36,6 +36,17 @@ def extract_text_from_pdf(pdf_path: str) -> dict:
         all_text = []
         for page in doc:
             page_text = page.get_text("text")
+            
+            # Extract clickable link annotations (URIs)
+            links = page.get_links()
+            link_uris = []
+            for link in links:
+                if link.get("kind") == fitz.LINK_URI and link.get("uri"):
+                    link_uris.append(link.get("uri"))
+                    
+            if link_uris:
+                page_text += "\n" + "\n".join(link_uris)
+                
             result["pages"].append(page_text)
             all_text.append(page_text)
         
@@ -78,6 +89,17 @@ def extract_text_from_pdf_bytes(pdf_bytes: bytes) -> dict:
         all_text = []
         for page in doc:
             page_text = page.get_text("text")
+            
+            # Extract clickable link annotations (URIs)
+            links = page.get_links()
+            link_uris = []
+            for link in links:
+                if link.get("kind") == fitz.LINK_URI and link.get("uri"):
+                    link_uris.append(link.get("uri"))
+                    
+            if link_uris:
+                page_text += "\n" + "\n".join(link_uris)
+                
             result["pages"].append(page_text)
             all_text.append(page_text)
         
