@@ -103,8 +103,9 @@ def analyze_resume_quality(
     contact: Dict[str, Optional[str]],
     word_count: int,
     career_level: str,
-    target_role: str,
-    yoe: str,
+    target_role: Optional[str] = None,
+    yoe: Optional[str] = None,
+    **kwargs
 ) -> Dict:
     """
     Main audit function.
