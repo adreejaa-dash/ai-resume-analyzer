@@ -48,7 +48,7 @@ from src.evaluation.evaluator import (
 )
 
 DATA_DIR = os.path.join(ROOT, "data", "raw")
-MODELS_DIR = os.path.join(ROOT, "models")
+MODELS_DIR = os.environ.get("MODELS_DIR", os.path.join(ROOT, "models_experimental"))
 os.makedirs(MODELS_DIR, exist_ok=True)
 
 
@@ -223,27 +223,32 @@ def stage2_sbert_baseline(train_sample, test_sample, train_sims, test_sims):
     return sbert, train_sbert_sims, test_sbert_sims
 
 
+def _extract_single_pair_skills(row_resume, row_jd, extractor):
+    resume_skills = extractor.extract_flat_skills(row_resume)
+    jd_skills_data = extract_jd_skills(row_jd, extractor)
+    skill_match = match_skills(
+        resume_skills,
+        jd_skills_data["required"],
+        jd_skills_data["preferred"],
+    )
+    return {
+        "resume_skill_count": len(resume_skills),
+        "jd_skill_count": len(jd_skills_data["all"]),
+        "matched_skill_count": skill_match["matched_required_count"],
+        "missing_skill_count": skill_match["missing_required_count"],
+        "skill_coverage": skill_match["overall_coverage"],
+        "required_skill_coverage": skill_match["required_coverage"],
+        "preferred_skill_coverage": skill_match["preferred_coverage"],
+    }
+
+
 def compute_skill_features(df_sample, taxonomy, extractor):
-    """Compute skill-based features for each resume/JD pair."""
-    features = []
-    for _, row in df_sample.iterrows():
-        resume_skills = extractor.extract_flat_skills(row["resume"])
-        jd_skills_data = extract_jd_skills(row["jd"], extractor)
-        skill_match = match_skills(
-            resume_skills,
-            jd_skills_data["required"],
-            jd_skills_data["preferred"],
-        )
-        features.append({
-            "resume_skill_count": len(resume_skills),
-            "jd_skill_count": len(jd_skills_data["all"]),
-            "matched_skill_count": skill_match["matched_required_count"],
-            "missing_skill_count": skill_match["missing_required_count"],
-            "skill_coverage": skill_match["overall_coverage"],
-            "required_skill_coverage": skill_match["required_coverage"],
-            "preferred_skill_coverage": skill_match["preferred_coverage"],
-        })
-    return features
+    """Compute skill-based features for each resume/JD pair in parallel across CPU cores."""
+    from joblib import Parallel, delayed
+    return Parallel(n_jobs=-1, batch_size=32)(
+        delayed(_extract_single_pair_skills)(r, j, extractor)
+        for r, j in zip(df_sample["resume"], df_sample["jd"])
+    )
 
 
 def stage3_hybrid_model(
