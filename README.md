@@ -81,44 +81,44 @@ The pipeline processes resumes and job descriptions through deterministic parser
 
 ```mermaid
 flowchart TD
-    subgraph Ingestion["1. Document Ingestion"]
-        PDF["📄 PDF Resume"] -->|"PyMuPDF (fitz)"| TXT1["Text Extraction &<br/>Normalization"]
-        IMG["🖼️ Image Resume<br/>(PNG / JPG)"] -->|"Tesseract OCR"| TXT1
-        JD["📋 Job Description<br/>(Raw Text)"] --> TXT2["JD Requirement<br/>Parser"]
+    subgraph S1["1. Document Ingestion"]
+        PDF["PDF Resume"] -->|"PyMuPDF"| NORM["Text Extraction<br/>and Normalization"]
+        IMG["Image Resume"] -->|"Tesseract OCR"| NORM
+        JD["Job Description<br/>(Plain Text)"] --> JDP["JD Requirement<br/>Parser"]
     end
 
-    subgraph Parsing["2. Parsing & Preprocessing"]
-        TXT1 --> RP["Resume Parser"]
-        RP --> CONT["Contact & Link<br/>Extractor"]
-        RP --> SECT["Section Segmentation<br/>(Exp, Edu, Skills)"]
-        RP --> QUAL["Quality & Hygiene<br/>Audit Engine"]
+    subgraph S2["2. Resume Parsing and Audit"]
+        NORM --> RP["Resume Structure<br/>Parser"]
+        RP --> CONT["Contact and Links<br/>Extractor"]
+        RP --> SECT["Section Parser<br/>(Exp, Edu, Skills)"]
+        RP --> QUAL["Quality and Hygiene<br/>Audit Engine"]
     end
 
-    subgraph FeatureExtraction["3. Taxonomy & Feature Extraction"]
-        SECT --> SKILL["Skill Extractor &<br/>Normalizer"]
-        TXT2 --> SKILL
-        ESCO[("📚 ESCO Taxonomy<br/>(Occupational Skills)")] --> SKILL
-        ONET[("📚 O*NET Tech Skills<br/>& Canonical Aliases")] --> SKILL
-        
-        SECT --> TFIDF["TF-IDF Vectorizer<br/>(Keyword Overlap)"]
-        TXT2 --> TFIDF
-        
-        SECT --> SBERT["Sentence-BERT<br/>(all-MiniLM-L6-v2)"]
-        TXT2 --> SBERT
+    subgraph S3["3. Taxonomy and Matching Engine"]
+        subgraph S3A["Skill Analysis"]
+            TAX[("ESCO and O*NET<br/>Taxonomies")] --> SKILL["Skill Extractor<br/>and Normalizer"]
+            SECT --> SKILL
+            JDP --> SKILL
+            SKILL --> GAP["Skill Gap<br/>Analyzer"]
+        end
+        subgraph S3B["Similarity Matching"]
+            SECT --> TFIDF["TF-IDF Vectorizer<br/>(Lexical Overlap)"]
+            JDP --> TFIDF
+            SECT --> SBERT["Sentence-BERT<br/>(Semantic Match)"]
+            JDP --> SBERT
+        end
     end
 
-    subgraph Scoring["4. Scoring & Inference Engine"]
-        SKILL --> GAP["Skill Gap Analyzer<br/>(Required vs Preferred)"]
-        TFIDF --> FV["14-Dimensional<br/>Feature Vector"]
+    subgraph S4["4. Scoring and Inference"]
+        GAP --> FV["14-Dimensional<br/>Feature Vector"]
+        TFIDF --> FV
         SBERT --> FV
-        GAP --> FV
-        
-        FV --> ML["ML Classifier<br/>(Logistic Regression)"]
-        FV --> HEUR["Rule-Based Scorer<br/>(config/scoring.yaml)"]
+        FV --> ML["ML Classifier<br/>(Logistic Reg)"]
+        FV --> HEUR["Heuristic Scorer<br/>(scoring.yaml)"]
     end
 
-    subgraph Presentation["5. Presentation Layer"]
-        QUAL --> DASH["Streamlit Interactive<br/>Dashboard"]
+    subgraph S5["5. Output and Visualization"]
+        QUAL --> DASH["Streamlit Web<br/>Dashboard"]
         ML --> DASH
         HEUR --> DASH
         GAP --> DASH
