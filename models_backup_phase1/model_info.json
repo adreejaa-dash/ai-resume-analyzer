@@ -1,0 +1,43 @@
+{
+  "best_model": "Logistic Regression",
+  "primary_metric": "Macro F1",
+  "dataset": "med2425/resume-job-fit-merged-v1",
+  "labels": [
+    "Good Fit",
+    "No Fit",
+    "Potential Fit"
+  ],
+  "feature_names": [
+    "tfidf_similarity",
+    "sbert_similarity",
+    "skill_coverage",
+    "required_skill_coverage",
+    "preferred_skill_coverage",
+    "resume_skill_count",
+    "jd_skill_count",
+    "matched_skill_count",
+    "missing_skill_count",
+    "resume_word_count",
+    "jd_word_count",
+    "length_ratio",
+    "education_match",
+    "experience_match"
+  ],
+  "note": "All metrics are actual test-set results, not fabricated.",
+  "results": {
+    "Logistic Regression": {
+      "accuracy": 0.5545833333333333,
+      "precision_macro": 0.5448211958090333,
+      "recall_macro": 0.5545833333333333,
+      "f1_macro": 0.5445797945660261,
+      "f1_weighted": 0.5445797945660261
+    },
+    "XGBoost": {
+      "accuracy": 0.5458333333333333,
+      "precision_macro": 0.546025649610891,
+      "recall_macro": 0.5458333333333333,
+      "f1_macro": 0.5406615061878678,
+      "f1_weighted": 0.5406615061878677
+    }
+  }
+}
