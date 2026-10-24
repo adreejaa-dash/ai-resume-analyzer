@@ -82,47 +82,47 @@ The pipeline processes resumes and job descriptions through deterministic parser
 ```mermaid
 flowchart TD
     subgraph Ingestion["1. Document Ingestion"]
-        PDF[PDF Resume] -->|PyMuPDF fitz| TextExtractor
-        IMG[Image Resume PNG/JPG] -->|Tesseract OCR| TextExtractor
-        JD[Job Description Text] --> JDExtractor[JD Text Parser]
+        PDF["📄 PDF Resume"] -->|"PyMuPDF (fitz)"| TXT1["Text Extraction &<br/>Normalization"]
+        IMG["🖼️ Image Resume<br/>(PNG / JPG)"] -->|"Tesseract OCR"| TXT1
+        JD["📋 Job Description<br/>(Raw Text)"] --> TXT2["JD Requirement<br/>Parser"]
     end
 
     subgraph Parsing["2. Parsing & Preprocessing"]
-        TextExtractor --> ResumeParser[Resume Structure Parser]
-        ResumeParser --> ContactParser[Contact & Links Extractor]
-        ResumeParser --> SectionParser[Section Segmentation]
-        ResumeParser --> QualityEngine[Resume Quality Audit Engine]
-        JDExtractor --> JDParser[JD Requirement Classifier]
+        TXT1 --> RP["Resume Parser"]
+        RP --> CONT["Contact & Link<br/>Extractor"]
+        RP --> SECT["Section Segmentation<br/>(Exp, Edu, Skills)"]
+        RP --> QUAL["Quality & Hygiene<br/>Audit Engine"]
     end
 
-    subgraph FeatureExtraction["3. Knowledge Bases & Feature Extraction"]
-        SectionParser --> SkillExtract[Skill Extractor Engine]
-        JDParser --> SkillExtract
-        ESCO[(ESCO Taxonomy)] --> SkillExtract
-        ONET[(O*NET Tech Skills)] --> SkillExtract
+    subgraph FeatureExtraction["3. Taxonomy & Feature Extraction"]
+        SECT --> SKILL["Skill Extractor &<br/>Normalizer"]
+        TXT2 --> SKILL
+        ESCO[("📚 ESCO Taxonomy<br/>(Occupational Skills)")] --> SKILL
+        ONET[("📚 O*NET Tech Skills<br/>& Canonical Aliases")] --> SKILL
         
-        SectionParser --> TFIDF[TF-IDF Vectorizer]
-        JDParser --> TFIDF
+        SECT --> TFIDF["TF-IDF Vectorizer<br/>(Keyword Overlap)"]
+        TXT2 --> TFIDF
         
-        SectionParser --> SBERT[Sentence-BERT all-MiniLM-L6-v2]
-        JDParser --> SBERT
+        SECT --> SBERT["Sentence-BERT<br/>(all-MiniLM-L6-v2)"]
+        TXT2 --> SBERT
     end
 
-    subgraph Scoring["4. Hybrid Scoring & Inference"]
-        SkillExtract --> MatchEngine[Skill Gap Analyzer]
-        TFIDF --> FeatVec[14-Feature ML Vector]
-        SBERT --> FeatVec
-        MatchEngine --> FeatVec
+    subgraph Scoring["4. Scoring & Inference Engine"]
+        SKILL --> GAP["Skill Gap Analyzer<br/>(Required vs Preferred)"]
+        TFIDF --> FV["14-Dimensional<br/>Feature Vector"]
+        SBERT --> FV
+        GAP --> FV
         
-        FeatVec --> MLModel[Supervised Classifier Logistic Regression]
-        FeatVec --> HeuristicScorer[Rule-Based Heuristic Scorer config/scoring.yaml]
+        FV --> ML["ML Classifier<br/>(Logistic Regression)"]
+        FV --> HEUR["Rule-Based Scorer<br/>(config/scoring.yaml)"]
     end
 
-    subgraph UI["5. Presentation Layer"]
-        QualityEngine --> Dashboard[Streamlit Interactive Dashboard]
-        MLModel --> Dashboard
-        HeuristicScorer --> Dashboard
-        MatchEngine --> Dashboard
+    subgraph Presentation["5. Presentation Layer"]
+        QUAL --> DASH["Streamlit Interactive<br/>Dashboard"]
+        ML --> DASH
+        HEUR --> DASH
+        GAP --> DASH
+        CONT --> DASH
     end
 ```
 
