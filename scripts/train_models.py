@@ -388,6 +388,10 @@ def stage3_hybrid_model(
     test_output = train_and_evaluate(
         X_train_all[idx_train], y_tr, X_test, y_test, le
     )
+    # Ensure model selection is driven by validation split, not test set:
+    test_output["best_model_name"] = val_output["best_model_name"]
+    test_output["best_model"] = test_output["results"][val_output["best_model_name"]]["model"]
+
     print("\nFinal Test Results:")
     print_comparison_table(test_output["results"])
 
