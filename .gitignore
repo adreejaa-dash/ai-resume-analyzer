@@ -11,6 +11,8 @@ uploaded_resumes/
 data/raw/
 data/processed/
 data/*.csv
+models_experimental/
+models_backup_phase1/
 
 
 
