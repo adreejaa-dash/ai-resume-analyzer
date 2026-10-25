@@ -27,7 +27,6 @@ import matplotlib.pyplot as plt
 
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
-from sklearn.utils.class_weight import compute_class_weight
 
 warnings.filterwarnings("ignore")
 
@@ -49,12 +48,12 @@ from src.evaluation.evaluator import (
 )
 
 DATA_DIR = os.path.join(ROOT, "data", "raw")
-MODELS_DIR = os.path.join(ROOT, "models")
+MODELS_DIR = os.environ.get("MODELS_DIR", os.path.join(ROOT, "models_experimental"))
 os.makedirs(MODELS_DIR, exist_ok=True)
 
 
 def load_data():
-    """Load primary dataset and verify integrity."""
+    """Load primary dataset, verify integrity, and deduplicate."""
     print("=" * 70)
     print("Loading primary dataset: med2425/resume-job-fit-merged-v1")
     print("=" * 70)
@@ -73,27 +72,55 @@ def load_data():
 
     print(f"Train: {len(train_df)} rows | Test: {len(test_df)} rows")
     print(f"Columns: {list(train_df.columns)}")
-    print(f"\nClass distribution (train):")
-    dist = train_df["label"].value_counts()
-    for label, cnt in dist.items():
-        pct = cnt / len(train_df) * 100
-        print(f"  {label:<20}: {cnt:>6} ({pct:.1f}%)")
-    print(f"\nClass distribution (test):")
-    dist_test = test_df["label"].value_counts()
-    for label, cnt in dist_test.items():
-        pct = cnt / len(test_df) * 100
-        print(f"  {label:<20}: {cnt:>6} ({pct:.1f}%)")
 
-    # Check for nulls
+    # Check for nulls and drop
     null_train = train_df[["resume", "jd", "label"]].isnull().sum()
     null_test = test_df[["resume", "jd", "label"]].isnull().sum()
     print(f"\nNull values (train): {null_train.to_dict()}")
     print(f"Null values (test):  {null_test.to_dict()}")
-
-    # Drop nulls
     train_df = train_df.dropna(subset=["resume", "jd", "label"])
     test_df = test_df.dropna(subset=["resume", "jd", "label"])
-    print(f"\nAfter null removal: train={len(train_df)}, test={len(test_df)}")
+
+    # Phase 2: Deduplicate exact (resume, jd) pairs within each split.
+    # For conflicting labels on the same pair, keep the first occurrence
+    # (conservative) and report the conflict count.
+    def dedup(df, split_name):
+        before = len(df)
+        # Detect conflicting labels: same (resume, jd) → multiple labels
+        conflict_mask = df.duplicated(subset=["resume", "jd"], keep=False)
+        n_conflicting_pairs = conflict_mask.sum()
+        if n_conflicting_pairs > 0:
+            print(f"  {split_name}: {n_conflicting_pairs} rows share a (resume,jd) "
+                  f"key — keeping first occurrence (conflicting labels reported above).")
+        deduped = df.drop_duplicates(subset=["resume", "jd"], keep="first").reset_index(drop=True)
+        print(f"  {split_name}: {before} → {len(deduped)} rows after dedup "
+              f"(removed {before - len(deduped)} duplicates)")
+        return deduped
+
+    print("\nDeduplication (Phase 2):")
+    train_df = dedup(train_df, "train")
+    test_df  = dedup(test_df,  "test")
+
+    # Cross-split contamination check (exact resume+jd match)
+    train_keys = set(zip(train_df["resume"], train_df["jd"]))
+    test_keys  = set(zip(test_df["resume"],  test_df["jd"]))
+    overlap = len(train_keys & test_keys)
+    if overlap > 0:
+        print(f"  WARNING: {overlap} (resume,jd) pairs appear in BOTH train and test splits. "
+              f"Removing them from the test split.")
+        test_df = test_df[
+            ~test_df.apply(lambda r: (r["resume"], r["jd"]) in train_keys, axis=1)
+        ].reset_index(drop=True)
+    else:
+        print(f"  No cross-split contamination detected. ✅")
+
+    print(f"\nFinal dataset: train={len(train_df)}, test={len(test_df)}")
+    print(f"\nClass distribution (train):")
+    for label, cnt in train_df["label"].value_counts().items():
+        print(f"  {label:<20}: {cnt:>6} ({cnt/len(train_df)*100:.1f}%)")
+    print(f"\nClass distribution (test):")
+    for label, cnt in test_df["label"].value_counts().items():
+        print(f"  {label:<20}: {cnt:>6} ({cnt/len(test_df)*100:.1f}%)")
 
     return train_df, test_df
 
@@ -196,27 +223,32 @@ def stage2_sbert_baseline(train_sample, test_sample, train_sims, test_sims):
     return sbert, train_sbert_sims, test_sbert_sims
 
 
+def _extract_single_pair_skills(row_resume, row_jd, extractor):
+    resume_skills = extractor.extract_flat_skills(row_resume)
+    jd_skills_data = extract_jd_skills(row_jd, extractor)
+    skill_match = match_skills(
+        resume_skills,
+        jd_skills_data["required"],
+        jd_skills_data["preferred"],
+    )
+    return {
+        "resume_skill_count": len(resume_skills),
+        "jd_skill_count": len(jd_skills_data["all"]),
+        "matched_skill_count": skill_match["matched_required_count"],
+        "missing_skill_count": skill_match["missing_required_count"],
+        "skill_coverage": skill_match["overall_coverage"],
+        "required_skill_coverage": skill_match["required_coverage"],
+        "preferred_skill_coverage": skill_match["preferred_coverage"],
+    }
+
+
 def compute_skill_features(df_sample, taxonomy, extractor):
-    """Compute skill-based features for each resume/JD pair."""
-    features = []
-    for _, row in df_sample.iterrows():
-        resume_skills = extractor.extract_flat_skills(row["resume"])
-        jd_skills_data = extract_jd_skills(row["jd"], extractor)
-        skill_match = match_skills(
-            resume_skills,
-            jd_skills_data["required"],
-            jd_skills_data["preferred"],
-        )
-        features.append({
-            "resume_skill_count": len(resume_skills),
-            "jd_skill_count": len(jd_skills_data["all"]),
-            "matched_skill_count": skill_match["matched_required_count"],
-            "missing_skill_count": skill_match["missing_required_count"],
-            "skill_coverage": skill_match["overall_coverage"],
-            "required_skill_coverage": skill_match["required_coverage"],
-            "preferred_skill_coverage": skill_match["preferred_coverage"],
-        })
-    return features
+    """Compute skill-based features for each resume/JD pair in parallel across CPU cores."""
+    from joblib import Parallel, delayed
+    return Parallel(n_jobs=-1, batch_size=32)(
+        delayed(_extract_single_pair_skills)(r, j, extractor)
+        for r, j in zip(df_sample["resume"], df_sample["jd"])
+    )
 
 
 def stage3_hybrid_model(
@@ -278,7 +310,7 @@ def stage3_hybrid_model(
     print("Computing skill features for training sample...")
     train_skill_feats = compute_skill_features(train_sample, taxonomy, extractor)
 
-    # Build feature matrix
+    # Build feature matrix (Phase 2: edu/exp features removed — see trainer.py)
     X_train_all = np.array([
         build_feature_vector(
             tfidf_sim=train_tfidf_sims[i],
@@ -297,7 +329,7 @@ def stage3_hybrid_model(
     ])
     y_train_all_enc = le.transform(train_sample["label"])
 
-    # Use full training sample for training, no validation leakage
+    # Use training split for train, validation split for early model selection
     X_tr = X_train_all[idx_train]
     y_tr = y_train_all_enc[idx_train]
     X_val = X_train_all[idx_val]
@@ -306,15 +338,10 @@ def stage3_hybrid_model(
     print(f"\nFeature matrix: train={X_tr.shape}, val={X_val.shape}")
     print(f"Feature names: {FEATURE_NAMES}")
 
-    # Compute class weights (training split only)
-    classes = np.unique(y_tr)
-    weights = compute_class_weight("balanced", classes=classes, y=y_tr)
-    class_weight_dict = dict(zip(classes, weights))
-    print(f"\nClass weights (balanced): {class_weight_dict}")
-
     # Train on training split, evaluate on validation split
+    # (Phase 2: class weighting is now handled inside train_and_evaluate)
     print("\n--- Training on train split, evaluating on VALIDATION split ---")
-    val_output = train_and_evaluate(X_tr, y_tr, X_val, y_val, le, class_weight_dict)
+    val_output = train_and_evaluate(X_tr, y_tr, X_val, y_val, le)
     print("\nValidation Results:")
     print_comparison_table(val_output["results"])
 
@@ -360,16 +387,16 @@ def stage3_hybrid_model(
     ])
     y_test = le.transform(test_sample["label"])
 
-    # Final evaluation uses scaler fitted on training data
-    from sklearn.preprocessing import StandardScaler
-    scaler = StandardScaler()
-    X_tr_scaled = scaler.fit_transform(X_train_all[idx_train])
-    X_test_scaled = scaler.transform(X_test)
-
-    # Retrain best model on full training split with scaler
+    # Phase 2: dead duplicate scaler code removed (was lines 363-367).
+    # train_and_evaluate() handles scaler internally — fitted on training
+    # data, applied to test data consistently.
     test_output = train_and_evaluate(
-        X_train_all[idx_train], y_tr, X_test, y_test, le, class_weight_dict
+        X_train_all[idx_train], y_tr, X_test, y_test, le
     )
+    # Ensure model selection is driven by validation split, not test set:
+    test_output["best_model_name"] = val_output["best_model_name"]
+    test_output["best_model"] = test_output["results"][val_output["best_model_name"]]["model"]
+
     print("\nFinal Test Results:")
     print_comparison_table(test_output["results"])
 

@@ -1,6 +1,14 @@
 import pytest
 from unittest.mock import MagicMock, patch
-import fitz
+
+try:
+    import fitz
+except ImportError:
+    fitz = None
+
+if fitz is None:
+    pytest.skip("PyMuPDF (fitz) is not installed in this environment", allow_module_level=True)
+
 from src.parsing.pdf_parser import extract_text_from_pdf, extract_text_from_pdf_bytes
 from src.parsing.resume_parser import extract_contact_info
 

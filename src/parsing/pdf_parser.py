@@ -4,7 +4,10 @@ PDF text extraction using PyMuPDF (fitz).
 Handles multi-page resumes and provides useful errors
 for non-extractable PDFs.
 """
-import fitz  # PyMuPDF
+try:
+    import fitz  # PyMuPDF
+except ImportError:
+    fitz = None
 
 
 def extract_text_from_pdf(pdf_path: str) -> dict:
@@ -28,6 +31,10 @@ def extract_text_from_pdf(pdf_path: str) -> dict:
         "has_text": False,
         "error": None,
     }
+    
+    if fitz is None:
+        result["error"] = "PyMuPDF (fitz) is not installed in this environment."
+        return result
     
     try:
         doc = fitz.open(pdf_path)
@@ -81,6 +88,10 @@ def extract_text_from_pdf_bytes(pdf_bytes: bytes) -> dict:
         "has_text": False,
         "error": None,
     }
+    
+    if fitz is None:
+        result["error"] = "PyMuPDF (fitz) is not installed in this environment."
+        return result
     
     try:
         doc = fitz.open(stream=pdf_bytes, filetype="pdf")

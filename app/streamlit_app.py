@@ -1,11 +1,13 @@
 """
-AI Resume Analyzer — Streamlit Application
+ResumeX — Streamlit Application
 
 Architecture:
   Resume PDF → PyMuPDF → Resume Parsing → Skill Extraction
   (Optional) JD Text → JD Parsing → Skill Extraction
   → TF-IDF + Sentence-BERT similarity (JD mode only)
-  → Skill Gap Analysis → Resume Quality Audit → Results Dashboard
+  → Skill Gap Analysis → Resume Quality Audit
+  → Personalized Suggestions (Phase 2)
+  → Results Dashboard
 """
 import os
 import sys
@@ -30,11 +32,12 @@ from src.matching.semantic_matcher import SemanticMatcher
 from src.scoring.scorer import calculate_match_score, load_scoring_config
 from src.analysis.experience_education import match_experience, match_education
 from src.analysis.resume_quality import analyze_resume_quality
+from src.analysis.suggestions import generate_suggestions
 from src.models.trainer import build_feature_vector
 
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="AI Resume Analyzer",
+    page_title="ResumeX",
     page_icon="🎯",
     layout="wide",
     initial_sidebar_state="collapsed",
@@ -47,6 +50,10 @@ st.markdown("""
 
 html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 .stApp { background: #0f1117; color: #e2e8f0; }
+
+/* Phase 2 UI: hide the fork / star toolbar injected by Streamlit Cloud */
+/* Only targets the specific toolbar-action items (Fork + GitHub icon) */
+[data-testid="stToolbarActions"] { display: none !important; }
 
 .hero-title {
     font-size: 2.4rem; font-weight: 700; text-align: center;
@@ -88,6 +95,25 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 .issue-sol    { background: rgba(34,197,94,0.08); padding: 0.65rem 0.9rem;
                 border-radius: 0.4rem; border: 1px solid rgba(34,197,94,0.2);
                 color: #86efac; font-size: 0.88rem; }
+
+/* Phase 2: Suggestion cards */
+.suggest-card {
+    background: #1a2236; border-radius: 0.75rem;
+    padding: 1rem 1.2rem; border-left: 4px solid #6366f1;
+    margin-bottom: 0.85rem;
+    transition: box-shadow 0.15s;
+}
+.suggest-card:hover { box-shadow: 0 2px 16px rgba(99,102,241,0.18); }
+.suggest-card.High   { border-color: #f59e0b; }
+.suggest-card.Medium { border-color: #6366f1; }
+.suggest-card.Low    { border-color: #475569; }
+.suggest-title    { font-weight: 700; font-size: 0.97rem; color: #f1f5f9; margin-bottom: 0.15rem; }
+.suggest-meta     { font-size: 0.75rem; color: #94a3b8; margin-bottom: 0.35rem; }
+.suggest-why      { font-size: 0.86rem; color: #cbd5e1; margin-bottom: 0.35rem; }
+.suggest-action   { background: rgba(99,102,241,0.10); padding: 0.55rem 0.85rem;
+                    border-radius: 0.4rem; border: 1px solid rgba(99,102,241,0.25);
+                    color: #a5b4fc; font-size: 0.86rem; margin-bottom: 0.25rem; }
+.suggest-evidence { font-size: 0.75rem; color: #475569; font-style: italic; margin-top: 0.15rem; }
 
 .skill-tag {
     display: inline-block; padding: 0.22rem 0.55rem;
@@ -188,7 +214,12 @@ def run_analysis(resume_text: str, jd_text: str, career_level: str, target_role:
 
         ml_proba = 0.5
         if model is not None:
-            fv = build_feature_vector(
+            # Phase 2: dimension-aware inference.
+            # New trainer produces 12D vectors. Old saved model expects 14D.
+            # Detect expected dimension from scaler and adapt.
+            import numpy as _np
+            expected_dim = getattr(scaler, "n_features_in_", 12)
+            fv_12 = build_feature_vector(
                 tfidf_sim=tfidf_sim, sbert_sim=sbert_sim,
                 skill_coverage=skill_match["overall_coverage"],
                 required_skill_coverage=skill_match["required_coverage"],
@@ -199,9 +230,16 @@ def run_analysis(resume_text: str, jd_text: str, career_level: str, target_role:
                 missing_skill_count=skill_match["missing_required_count"],
                 resume_word_count=len(resume_text.split()),
                 jd_word_count=len(jd_text.split()),
-                education_match=edu_match["match_indicator"],
-                experience_match=exp_match["match_indicator"],
-            ).reshape(1, -1)
+            )
+            if expected_dim == 14:
+                # Old model: restore raw word counts (was log1p) and append edu/exp
+                fv_14 = fv_12.copy()
+                fv_14[9] = float(len(resume_text.split()))
+                fv_14[10] = float(len(jd_text.split()))
+                fv = _np.append(fv_14, [edu_match["match_indicator"],
+                                        exp_match["match_indicator"]]).reshape(1, -1)
+            else:
+                fv = fv_12.reshape(1, -1)
             ml_proba = float(max(model.predict_proba(scaler.transform(fv))[0]))
 
         score_result = calculate_match_score(
@@ -225,6 +263,24 @@ def run_analysis(resume_text: str, jd_text: str, career_level: str, target_role:
         yoe=yoe,
     )
 
+    # Phase 2: Generate personalized suggestions
+    suggestions = generate_suggestions(
+        resume_text=resume_text,
+        resume_parsed=resume_parsed,
+        resume_skills=resume_skills,
+        target_role=target_role,
+        career_level=career_level,
+        audit_result=audit,
+        has_jd=has_jd,
+        jd_text=jd_text if has_jd else "",
+        jd_required_skills=jd_skills_data["required"] if has_jd else [],
+        jd_preferred_skills=jd_skills_data["preferred"] if has_jd else [],
+        skill_match=skill_match,
+        tfidf_sim=tfidf_sim,
+        sbert_sim=sbert_sim,
+        score_result=score_result,
+    )
+
     return {
         "has_jd":       has_jd,
         "score":        score_result,
@@ -237,6 +293,7 @@ def run_analysis(resume_text: str, jd_text: str, career_level: str, target_role:
         "sbert_sim":    sbert_sim,
         "resume_parsed": resume_parsed,
         "audit":        audit,
+        "suggestions":  suggestions,
     }
 
 
@@ -287,9 +344,9 @@ TARGET_ROLES = [
 
 
 def main():
-    st.markdown('<div class="hero-title">🎯 AI Resume Analyzer</div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero-title">🎯 ResumeX</div>', unsafe_allow_html=True)
     st.markdown(
-        '<div class="hero-sub">Get a detailed audit of your resume with specific issues and actionable solutions.</div>',
+        '<div class="hero-sub">Make your resume stronger and stand out to employers.</div>',
         unsafe_allow_html=True,
     )
 
@@ -518,6 +575,43 @@ def main():
                 f"JD: {edu['jd_requirement']}",
                 f"Your resume: {edu['resume_degree']} — {edu['note']}",
             )
+
+    # ── Phase 2: Personalized Suggestions ────────────────────────────────
+    suggestions = r.get("suggestions", [])
+    if suggestions:
+        st.divider()
+        st.markdown("### 💡 Personalized Recommendations")
+        st.caption(
+            "These recommendations are specific to your resume and the selected role. "
+            "Only act on suggestions that accurately reflect your actual experience."
+        )
+
+        priority_emoji = {"High": "🔴", "Medium": "🟡", "Low": "⚪"}
+        for sg in suggestions:
+            pri   = sg["priority"]
+            emoji = priority_emoji.get(pri, "")
+            ev_html = (
+                f'<div class="suggest-evidence">📌 {sg["evidence"]}</div>'
+                if sg.get("evidence") else ""
+            )
+            st.markdown(f"""
+            <div class="suggest-card {pri}">
+                <div class="suggest-title">{emoji} {sg['title']}</div>
+                <div class="suggest-meta">
+                    <strong>Category:</strong> {sg['category']} &nbsp;|&nbsp;
+                    <strong>Priority:</strong> {pri}
+                </div>
+                <div class="suggest-why"><strong>Why this matters:</strong> {sg['rationale']}</div>
+                <div class="suggest-action"><strong>What to do:</strong> {sg['action']}</div>
+                {ev_html}
+            </div>""", unsafe_allow_html=True)
+    else:
+        st.divider()
+        st.markdown("### 💡 Personalized Recommendations")
+        st.success(
+            "No specific improvement recommendations generated for this resume. "
+            "Your resume appears well-structured for the selected role."
+        )
 
 
 if __name__ == "__main__":
