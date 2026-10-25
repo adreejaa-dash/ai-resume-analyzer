@@ -1,5 +1,5 @@
 """
-AI Resume Analyzer — Streamlit Application
+ResumeX — Streamlit Application
 
 Architecture:
   Resume PDF → PyMuPDF → Resume Parsing → Skill Extraction
@@ -37,7 +37,7 @@ from src.models.trainer import build_feature_vector
 
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="AI Resume Analyzer",
+    page_title="ResumeX",
     page_icon="🎯",
     layout="wide",
     initial_sidebar_state="collapsed",
@@ -344,9 +344,9 @@ TARGET_ROLES = [
 
 
 def main():
-    st.markdown('<div class="hero-title">🎯 AI Resume Analyzer</div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero-title">🎯 ResumeX</div>', unsafe_allow_html=True)
     st.markdown(
-        '<div class="hero-sub">Get a detailed audit of your resume with specific issues and actionable solutions.</div>',
+        '<div class="hero-sub">Make your resume stronger and stand out to employers.</div>',
         unsafe_allow_html=True,
     )
 
